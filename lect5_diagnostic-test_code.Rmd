@@ -1,0 +1,354 @@
+---
+title: "Lecture 5: Validity & Reliability"
+output: html_notebook
+---
+
+# Designing a test
+```{r}
+library(dplyr)
+diagnostic.test.design = function(sensitivity, specificity, prevalence, samp.size, test.type = "None", seed = 1, I = FALSE){
+  
+  if (test.type != "None" & length(sensitivity) !=2) stop("Error: Need sensitivity for 2nd test!")
+  if (test.type != "None" & length(specificity) !=2) stop("Error: Need specificity for 2nd test!")
+  writeLines(paste("Printing results for Team #", seed, sep = ""))
+  set.seed(seed)
+  
+  # Calculate prevalence
+  prev = (prevalence + 5) / 100
+  
+  if (I ==TRUE){     ##########   IF INSTRUCTOR (I) == TRUE   ##########
+    # Create sample data
+    samp_mat1 = matrix(NA, nrow=3, ncol=3)
+    samp_mat1[1, 1] = samp.size * prev * sensitivity[1] # Cell A
+    samp_mat1[1, 2] = samp.size * (1 - prev) * (1 - specificity[1]) # Cell B
+    samp_mat1[1, 3] = samp_mat1[1, 1] + samp_mat1[1, 2] # Total for Cell A & Cell B
+    samp_mat1[2, 1] = samp.size * prev * (1 - sensitivity[1]) # Cell C
+    samp_mat1[2, 2] = samp.size * (1 - prev) * specificity[1] # Cell D
+    samp_mat1[2, 3] = samp_mat1[2, 1] + samp_mat1[2, 2] # Total for Cell C & Cell D
+    samp_mat1[3, 1] = samp_mat1[1, 1] + samp_mat1[2, 1] # Total for Cell A & Cell C
+    samp_mat1[3, 2] = samp_mat1[1, 2] + samp_mat1[2, 2] # Total for Cell B & Cell D
+    samp_mat1[3, 3] = samp.size
+    rownames(samp_mat1) = c("Positive", "Negative", "Total")
+    colnames(samp_mat1) = c("Disease", "No Disease", "Total")
+    
+    if (test.type == "simultaneous"){
+      tsim = matrix(NA, nrow = samp.size, ncol = 4)
+      tsim[, 1] = seq(1:samp.size) # ID
+      tsim[, 2] = rbinom(samp.size, 1, prev) # Randomly assign disease status
+      t.pos = sum(tsim[, 2] == 1) # Determine those assigned disease status for proper application of sensitivity/specificity
+      t.neg = sum(tsim[, 2] == 0) # Determine those assigned non-disease status for ...
+      tsim[, 3] = ifelse(tsim[, 2] == 1, rbinom(t.pos, 1, sensitivity[1]), rbinom(t.neg, 1, 1 - specificity[1])) # Randomly assign test result for T1 
+      tsim[, 4] = ifelse(tsim[, 2] == 1, rbinom(t.pos, 1, sensitivity[2]), rbinom(t.neg, 1, 1 - specificity[2])) # Randomly assign test result for T2 
+      colnames(tsim) = c("id", "dis", "t1", "t2")
+  
+      # Table for Test 1
+      t1.matrix = matrix(NA, nrow = 3, ncol = 3)
+      for (i in 0:1){
+        for (j in 0:1){
+          cell.count = as.data.frame(tsim) %>%
+            filter(dis == i, t1 == j) %>%
+            count()
+          t1.matrix[(2-j), (2-i)] = as.integer(cell.count)
+        }
+      }
+      t1.matrix[1, 3] = sum(t1.matrix[1, 1], t1.matrix[1, 2])
+      t1.matrix[2, 3] = sum(t1.matrix[2, 1], t1.matrix[2, 2])
+      t1.matrix[3, 1] = sum(t1.matrix[1, 1], t1.matrix[2, 1])
+      t1.matrix[3, 2] = sum(t1.matrix[1, 2], t1.matrix[2, 2])
+      t1.matrix[3, 3] = sum(t1.matrix)
+      rownames(t1.matrix) = c("Positive", "Negative", "Total")
+      colnames(t1.matrix) = c("Disease", "No Disease", "Total")
+  
+      # Table for Test 2
+      t2.matrix = matrix(NA, nrow = 3, ncol = 3)
+      for (i in 0:1){
+        for (j in 0:1){
+          cell.count = as.data.frame(tsim) %>%
+            filter(dis == i, t2 == j) %>%
+            count()
+          t2.matrix[(2-j), (2-i)] = as.integer(cell.count)
+        }
+      }
+      t2.matrix[1, 3] = sum(t2.matrix[1, 1], t2.matrix[1, 2])
+      t2.matrix[2, 3] = sum(t2.matrix[2, 1], t2.matrix[2, 2])
+      t2.matrix[3, 1] = sum(t2.matrix[1, 1], t2.matrix[2, 1])
+      t2.matrix[3, 2] = sum(t2.matrix[1, 2], t2.matrix[2, 2])
+      t2.matrix[3, 3] = sum(t2.matrix)
+      rownames(t2.matrix) = c("Positive", "Negative", "Total")
+      colnames(t2.matrix) = c("Disease", "No Disease", "Total")
+      # Table for simultaneous testing
+      sim.test.matrix = matrix(NA, nrow = 3, ncol = 3)
+      cell.count.a = as.data.frame(tsim) %>%
+                  filter(dis == 1, t1 == 1, t2 == 1) %>%
+                  count()
+      cell.count.b1 = as.data.frame(tsim) %>%
+                  filter(dis == 0, t1 == 1, t2 == 0) %>%
+                  count()
+      cell.count.b2 = as.data.frame(tsim) %>%
+                  filter(dis == 0, t1 == 0, t2 == 1) %>%
+                  count()
+      cell.count.b3 = as.data.frame(tsim) %>%
+                  filter(dis == 0, t1 == 1, t2 == 1) %>%
+                  count()
+      cell.count.c1 = as.data.frame(tsim) %>%
+                  filter(dis == 1, t1 == 1, t2 == 0) %>%
+                  count()
+      cell.count.c2 = as.data.frame(tsim) %>%
+                  filter(dis == 1, t1 == 0, t2 == 1) %>%
+                  count()
+      cell.count.c3 = as.data.frame(tsim) %>%
+                  filter(dis == 1, t1 == 0, t2 == 0) %>%
+                  count()
+      cell.count.d = as.data.frame(tsim) %>%
+                  filter(dis == 0, t1 == 0, t2 == 0) %>%
+                  count()  
+      sim.test.matrix[1, 1] = as.integer(cell.count.a)
+      sim.test.matrix[1, 2] = as.integer(sum(cell.count.b1, cell.count.b2, cell.count.b3))
+      sim.test.matrix[2, 1] = as.integer(sum(cell.count.c1, cell.count.c2, cell.count.c3))
+      sim.test.matrix[2, 2] = as.integer(cell.count.d)
+      sim.test.matrix[1, 3] = sum(sim.test.matrix[1, 1], sim.test.matrix[1, 2])
+      sim.test.matrix[2, 3] = sum(sim.test.matrix[2, 1], sim.test.matrix[2, 2])
+      sim.test.matrix[3, 1] = sum(sim.test.matrix[1, 1], sim.test.matrix[2, 1])
+      sim.test.matrix[3, 2] = sum(sim.test.matrix[1, 2], sim.test.matrix[2, 2])
+      sim.test.matrix[3, 3] = sum(sim.test.matrix)
+      rownames(sim.test.matrix) = c("Positive", "Negative", "Total")
+      colnames(sim.test.matrix) = c("Disease", "No Disease", "Total")
+     
+    } else if (test.type == "sequential"){
+      samp_mat2 = matrix(NA, nrow = 3, ncol = 3)
+      samp_mat2[1, 1] = samp_mat1[1, 1] * sensitivity[2] # Cell A
+      samp_mat2[1, 2] = samp_mat1[1, 2] * (1 - specificity[2]) # Cell B
+      samp_mat2[1, 3] = samp_mat2[1, 1] + samp_mat2[1, 2] # Total for Cell A & Cell B
+      samp_mat2[2, 1] = samp_mat1[1, 1] * (1 - sensitivity[2]) # Cell C
+      samp_mat2[2, 2] = samp_mat1[1, 2] * specificity[2] # Cell D
+      samp_mat2[2, 3] = samp_mat2[2, 1] + samp_mat2[2, 2] # Total for Cell C & Cell D
+      samp_mat2[3, 1] = samp_mat2[1, 1] + samp_mat2[2, 1] # Total for Cell A & Cell C
+      samp_mat2[3, 2] = samp_mat2[1, 2] + samp_mat2[2, 2] # Total for Cell B & Cell D
+      samp_mat2[3, 3] = samp_mat1[1, 3] # Total subjects from Test 1 who were positive
+      rownames(samp_mat2) = c("Positive", "Negative", "Total")
+      colnames(samp_mat2) = c("Disease", "No Disease", "Total") 
+    } else {
+      samp_mat2 = NA
+    }
+    
+    # Calculate PPV & NPV
+    if (test.type == "None"){
+      ppv.value = round(samp_mat1[1, 1] / (samp_mat1[1, 1] + samp_mat1[1, 2]), 2)
+      npv.value = round(samp_mat1[2, 2] / (samp_mat1[2, 1] + samp_mat1[2, 2]), 2)
+      # State TP, FP, FN, TN, PPV, NPV
+      tp = paste("The number of true positives (TP) is ", samp_mat1[1, 1], sep = "")
+      fp = paste("The number of false positives (FP) is ", samp_mat1[1, 2], sep = "")
+      fn = paste("The number of false negatives (FN) is ", samp_mat1[2, 1], sep = "")
+      tn = paste("The number of true negatives (TN) is ", samp_mat1[2, 2], sep = "")
+      ppv = paste("The positive predictive value (PPV) = a / (a + b) = ", 
+                  samp_mat1[1, 1], " / (", samp_mat1[1, 1], " + ", samp_mat1[1, 2], ") = ", ppv.value, sep = "")
+      npv = paste("The negative predictive value (NPV) = d / (c + d) = ", 
+                  samp_mat1[2, 1], " / (", samp_mat1[2, 1], " + ", samp_mat1[2, 2], ") = ", npv.value, sep = "")
+
+      # Print results
+      print(as.data.frame(samp_mat1))
+      cat("\n")
+      writeLines(tp)
+      writeLines(fp)
+      writeLines(fn)
+      writeLines(tn)
+      cat("\n")
+      writeLines(ppv)
+      writeLines(npv) 
+      
+      } else if (test.type == "sequential"){
+        ppv.value = round(samp_mat2[1, 1] / (samp_mat2[1, 1] + samp_mat2[1, 2]), 2)
+        npv.value = round(samp_mat2[2, 2] / (samp_mat2[2, 1] + samp_mat2[2, 2]), 2)
+        # State TP, FP, FN, TN, PPV, NPV
+        tp = paste("The number of true positives (TP) is ", samp_mat2[1, 1], sep = "")
+        fp = paste("The number of false positives (FP) is ", samp_mat2[1, 2], sep = "")
+        fn = paste("The number of false negatives (FN) is ", samp_mat2[2, 1], sep = "")
+        tn = paste("The number of true negatives (TN) is ", samp_mat2[2, 2], sep = "")
+        ppv = paste("The positive predictive value (PPV) = a / (a + b) = ", 
+                    samp_mat2[1, 1], " / (", samp_mat2[1, 1], " + ", samp_mat2[1, 2], ") = ", ppv.value, sep = "")
+        npv = paste("The negative predictive value (NPV) = d / (c + d) = ", 
+                    samp_mat2[2, 1], " / (", samp_mat2[2, 1], " + ", samp_mat2[2, 2], ") = ", npv.value, sep = "")
+
+        # Print results
+        print(as.data.frame(samp_mat1))
+        print(as.data.frame(samp_mat2))
+        cat("\n")
+        writeLines(tp)
+        writeLines(fp)
+        writeLines(fn)
+        writeLines(tn)
+        cat("\n")
+        writeLines(ppv)
+        writeLines(npv)  
+        
+      } else {
+        ppv.value = round(sim.test.matrix[1, 1] / (sim.test.matrix[1, 1] + sim.test.matrix[1, 2]), 2)
+        npv.value = round(sim.test.matrix[2, 2] / (sim.test.matrix[2, 1] + sim.test.matrix[2, 2]), 2)
+        # State TP, FP, FN, TN, PPV, NPV
+        tp = paste("The number of true positives (TP) is ", sim.test.matrix[1, 1], sep = "")
+        fp = paste("The number of false positives (FP) is ", sim.test.matrix[1, 2], sep = "")
+        fn = paste("The number of false negatives (FN) is ", sim.test.matrix[2, 1], sep = "")
+        tn = paste("The number of true negatives (TN) is ", sim.test.matrix[2, 2], sep = "")
+        ppv = paste("The positive predictive value (PPV) = a / (a + b) = ", 
+                    sim.test.matrix[1, 1], " / (", sim.test.matrix[1, 1], " + ", sim.test.matrix[1, 2], ") = ", ppv.value, sep = "")
+        npv = paste("The negative predictive value (NPV) = d / (c + d) = ", 
+                    sim.test.matrix[2, 1], " / (", sim.test.matrix[2, 1], " + ", sim.test.matrix[2, 2], ") = ", npv.value, sep = "")
+
+        # Print results
+        print(as.data.frame(sim.test.matrix))
+        cat("\n")
+        writeLines(tp)
+        writeLines(fp)
+        writeLines(fn)
+        writeLines(tn)
+        cat("\n")
+        writeLines(ppv)
+        writeLines(npv)            
+        }
+
+  } else{ #########################    IF INSTRUCTOR (I) == FALSE    ##################################
+      # Create sample data
+    samp_mat1 = matrix(NA, nrow = 2, ncol = 2)
+    samp_mat1[1, 1] = samp.size * prev * sensitivity[1] # Cell A
+    samp_mat1[1, 2] = samp.size * (1 - prev) * (1 - specificity[1]) # Cell B
+    samp_mat1[2, 1] = samp.size * prev * (1 - sensitivity[1]) # Cell C
+    samp_mat1[2, 2] = samp.size * (1 - prev) * specificity[1] # Cell D
+    rownames(samp_mat1) = c("Positive", "Negative")
+    colnames(samp_mat1) = c("Disease", "No Disease")
+    
+    if (test.type == "simultaneous"){
+      tsim = matrix(NA, nrow = samp.size, ncol = 4)
+      tsim[, 1] = seq(1:samp.size) # ID
+      tsim[, 2] = rbinom(samp.size, 1, prev) # Randomly assign disease status
+      t.pos = sum(tsim[, 2] == 1) # Determine those assigned disease status for proper application of sensitivity/specificity
+      t.neg = sum(tsim[, 2] == 0) # Determine those assigned non-disease status for ...
+      tsim[, 3] = ifelse(tsim[, 2] == 1, rbinom(t.pos, 1, sensitivity[1]), rbinom(t.neg, 1, 1 - specificity[1])) # Randomly assign test result for T1 
+      tsim[, 4] = ifelse(tsim[, 2] == 1, rbinom(t.pos, 1, sensitivity[2]), rbinom(t.neg, 1, 1 - specificity[2])) # Randomly assign test result for T2 
+      colnames(tsim) = c("id", "dis", "t1", "t2")
+  
+      # Table for Test 1
+      t1.matrix = matrix(NA, nrow = 2, ncol = 2)
+      for (i in 0:1){
+        for (j in 0:1){
+          cell.count = as.data.frame(tsim) %>%
+            filter(dis == i, t1 == j) %>%
+            count()
+          t1.matrix[(2-j), (2-i)] = as.integer(cell.count)
+        }
+      }
+      rownames(t1.matrix) = c("Positive", "Negative")
+      colnames(t1.matrix) = c("Disease", "No Disease")
+  
+      # Table for Test 2
+      t2.matrix = matrix(NA, nrow = 2, ncol = 2)
+      for (i in 0:1){
+        for (j in 0:1){
+          cell.count = as.data.frame(tsim) %>%
+            filter(dis == i, t2 == j) %>%
+            count()
+          t2.matrix[(2-j), (2-i)] = as.integer(cell.count)
+        }
+      }
+      rownames(t2.matrix) = c("Positive", "Negative")
+      colnames(t2.matrix) = c("Disease", "No Disease")
+      # Table for simultaneous testing
+      sim.test.matrix = matrix(NA, nrow = 2, ncol = 2)
+      cell.count.a = as.data.frame(tsim) %>%
+                  filter(dis == 1, t1 == 1, t2 == 1) %>%
+                  count()
+      cell.count.b1 = as.data.frame(tsim) %>%
+                  filter(dis == 0, t1 == 1, t2 == 0) %>%
+                  count()
+      cell.count.b2 = as.data.frame(tsim) %>%
+                  filter(dis == 0, t1 == 0, t2 == 1) %>%
+                  count()
+      cell.count.b3 = as.data.frame(tsim) %>%
+                  filter(dis == 0, t1 == 1, t2 == 1) %>%
+                  count()
+      cell.count.c1 = as.data.frame(tsim) %>%
+                  filter(dis == 1, t1 == 1, t2 == 0) %>%
+                  count()
+      cell.count.c2 = as.data.frame(tsim) %>%
+                  filter(dis == 1, t1 == 0, t2 == 1) %>%
+                  count()
+      cell.count.c3 = as.data.frame(tsim) %>%
+                  filter(dis == 1, t1 == 0, t2 == 0) %>%
+                  count()
+      cell.count.d = as.data.frame(tsim) %>%
+                  filter(dis == 0, t1 == 0, t2 == 0) %>%
+                  count()  
+      sim.test.matrix[1, 1] = as.integer(cell.count.a)
+      sim.test.matrix[1, 2] = as.integer(sum(cell.count.b1, cell.count.b2, cell.count.b3))
+      sim.test.matrix[2, 1] = as.integer(sum(cell.count.c1, cell.count.c2, cell.count.c3))
+      sim.test.matrix[2, 2] = as.integer(cell.count.d)
+      rownames(sim.test.matrix) = c("Positive", "Negative")
+      colnames(sim.test.matrix) = c("Disease", "No Disease")
+      
+    } else if (test.type == "sequential"){
+      samp_mat2 = matrix(NA, nrow = 2, ncol = 2)
+      samp_mat2[1, 1] = samp_mat1[1, 1] * sensitivity[2] # Cell A
+      samp_mat2[1, 2] = samp_mat1[1, 2] * (1 - specificity[2]) # Cell B
+      samp_mat2[2, 1] = samp_mat1[1, 1] * (1 - sensitivity[2]) # Cell C
+      samp_mat2[2, 2] = samp_mat1[1, 2] * specificity[2] # Cell D
+      rownames(samp_mat2) = c("Positive", "Negative")
+      colnames(samp_mat2) = c("Disease", "No Disease") 
+    } else {
+      samp_mat2 = NA
+    }
+    
+    # Calculate PPV & NPV
+    if (test.type == "None"){
+      # State TP, FP, FN, TN, PPV, NPV
+      tp = paste("The number of true positives (TP) is ", samp_mat1[1, 1], sep = "")
+      fp = paste("The number of false positives (FP) is ", samp_mat1[1, 2], sep = "")
+      fn = paste("The number of false negatives (FN) is ", samp_mat1[2, 1], sep = "")
+      tn = paste("The number of true negatives (TN) is ", samp_mat1[2, 2], sep = "")
+
+      # Print results
+      print(as.data.frame(samp_mat1))
+      cat("\n")
+      writeLines(tp)
+      writeLines(fp)
+      writeLines(fn)
+      writeLines(tn)
+      
+      } else if (test.type == "sequential"){
+        # State TP, FP, FN, TN, PPV, NPV
+        tp = paste("The number of true positives (TP) is ", samp_mat2[1, 1], sep = "")
+        fp = paste("The number of false positives (FP) is ", samp_mat2[1, 2], sep = "")
+        fn = paste("The number of false negatives (FN) is ", samp_mat2[2, 1], sep = "")
+        tn = paste("The number of true negatives (TN) is ", samp_mat2[2, 2], sep = "")
+
+        # Print results
+        print(as.data.frame(samp_mat1))
+        print(as.data.frame(samp_mat2))
+        cat("\n")
+        writeLines(tp)
+        writeLines(fp)
+        writeLines(fn)
+        writeLines(tn)
+       
+      } else {
+        # State TP, FP, FN, TN, PPV, NPV
+        tp = paste("The number of true positives (TP) is ", sim.test.matrix[1, 1], sep = "")
+        fp = paste("The number of false positives (FP) is ", sim.test.matrix[1, 2], sep = "")
+        fn = paste("The number of false negatives (FN) is ", sim.test.matrix[2, 1], sep = "")
+        tn = paste("The number of true negatives (TN) is ", sim.test.matrix[2, 2], sep = "")
+        ppv = paste("The positive predictive value (PPV) = a / (a + b) = ", 
+                    sim.test.matrix[1, 1], " / (", sim.test.matrix[1, 1], " + ", sim.test.matrix[1, 2], ") = ", ppv.value, sep = "")
+        npv = paste("The negative predictive value (NPV) = d / (c + d) = ", 
+                    sim.test.matrix[2, 1], " / (", sim.test.matrix[2, 1], " + ", sim.test.matrix[2, 2], ") = ", npv.value, sep = "")
+
+        # Print results
+        print(as.data.frame(t1.matrix))
+        print(as.data.frame(t2.matrix))
+        print(as.data.frame(sim.test.matrix))
+        cat("\n")
+        writeLines(tp)
+        writeLines(fp)
+        writeLines(fn)
+        writeLines(tn)
+        }
+  }
+}
+```
