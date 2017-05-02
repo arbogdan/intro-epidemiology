@@ -16,8 +16,9 @@ For lectures where programs were created, the corresponding lecture number and a
     `I`: Instructor output. Includes row/column totals, PPV/NPV, and brief explanations of how answers were reached.  
   
     
-**Lecture \#6**: Ecological Studies
+**Lecture \#6**: Ecological Studies  
   *Description*: Students were asked to design their own ecological study. Students were given a field within medicine from which to choose an exposure and an outcome. Students were asked to specify a target population, sample size, and a valid/plausible source for their population-level data. Once the study had been designed, the program was used to generate data. The resulting output would be the Pearson correlation coefficient and an accompanying graphic, both of which students were expected to interpret.    
+    
     
     Program funtions: `ecological.study.design(exposure, outcome, samp.size, exp.scale, group.type, k.groups, corr, seed)`  
       `exposure`: Exposure name. Entered as string.  
