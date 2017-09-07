@@ -25,6 +25,6 @@ For lectures where programs were created, the corresponding lecture number and a
     `samp.size`: Desired sample size.  
     `exp.scale`: Mean value for scale of exposure &amp; outcome, respectively; two values must be provided. Accepted values include 1 - 4: 1 = 1, 2 = 10, 3 = 100, 4 = 1000; values used as mean in `rnorm` with appropriate standard deviation. Default is `c(1, 1)`. 
     `group.type`: Grouping variable for data (if applicable). Options are `c('countries', 'time', 'none')`. Default is `none`.  
-    `k.groups`: Number of groups desired (if applicable). Error if specified while `group.type == none`. Default is `0`. 
-    `corr`: Pearson correlation coefficient for data. Options are `c('positive', 'negative', 'none')`. Default is `none`. 
+    `k.groups`: Number of groups desired (if applicable). Error if specified while `group.type == none`. Default is `0`.  
+    `corr`: Pearson correlation coefficient for data. Options are `c('positive', 'negative', 'none')`. Default is `none`.  
     `seed`: Set seed for reproducability. In team-based learning, use team number for simplicity. Default is `1`.    
